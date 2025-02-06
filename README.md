@@ -1,58 +1,65 @@
-# Turborepo Tailwind CSS starter
+# Popup Demo Wallet
 
-This Turborepo starter is maintained by the Turborepo core team.
+This repository demonstrates a popup-based Ethereum wallet implementation using Next.js, Wagmi, RainbowKit, and Turnkey.
+It showcases how to build a dApp that communicates with a popup wallet window for handling Ethereum transactions and message signing.
 
-## Using this example
+## Overview
 
-Run the following command:
+The repository consists of two main applications that work together:
 
-```sh
-npx create-turbo@latest -e with-tailwind
+- `dapp`: A Next.js app that serves as the main dApp interface.
+- `wallet`: A Next.js app that serves as the popup wallet interface.
+
+## How It Works
+
+### Communication Flow
+
+1. The dApp initiates wallet operations through the Wagmi connector
+2. The connector opens a popup window with the wallet application
+3. The wallet handles the request and communicates back to the dApp
+4. The dApp receives the response and updates accordingly
+
+### Key Components
+
+#### DApp Side
+
+**Wagmi Connector** (`apps/dapp/lib/connector.ts`):
+
+- Implements a custom Wagmi connector for the popup wallet
+- Manages wallet connection state and event handling
+
+**EIP-1193 Provider** (`apps/dapp/lib/eip1193-provider.ts`):
+
+- Implements a custom EIP-1193 provider for the popup wallet
+- Creates and manages the popup window lifecycle
+- Handles RPC requests and responses
+- Routes write requests to the popup wallet, and read requests to the rpc provider
+
+#### Wallet Side
+
+**Wallet Page** (`apps/wallet/app/page.tsx`):
+
+- Receives requests via URL parameters, parses and validates them
+- Renders appropriate components based on request type
+- Handles sending requests to Turnkey's API
+- Communicates back to the dApp using window.opener.postMessage
+
+**Window Messenger** (`apps/wallet/lib/window-messenger.ts`):
+
+- Handles sending RPC response messages back to the dApp
+
+### Supported Operations
+
+- Account connection (eth_requestAccounts)
+- Transaction signing (eth_signTransaction)
+- Message signing (personal_sign, eth_sign)
+
+### Development
+
+To run the dApp and wallet locally, you can use the following commands:
+
+This will start the dApp and wallet in development mode:
+
+```bash
+npm run dev
 ```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `web`: another [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `ui`: a stub React component library with [Tailwind CSS](https://tailwindcss.com/) shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Building packages/ui
-
-This example is set up to produce compiled styles for `ui` components into the `dist` directory. The component `.tsx` files are consumed by the Next.js apps directly using `transpilePackages` in `next.config.js`. This was chosen for several reasons:
-
-- Make sharing one `tailwind.config.js` to apps and packages as easy as possible.
-- Make package compilation simple by only depending on the Next.js Compiler and `tailwindcss`.
-- Ensure Tailwind classes do not overwrite each other. The `ui` package uses a `ui-` prefix for it's classes.
-- Maintain clear package export boundaries.
-
-Another option is to consume `packages/ui` directly from source without building. If using this option, you will need to update the `tailwind.config.js` in your apps to be aware of your package locations, so it can find all usages of the `tailwindcss` class names for CSS compilation.
-
-For example, in [tailwind.config.js](packages/tailwind-config/tailwind.config.js):
-
-```js
-  content: [
-    // app content
-    `src/**/*.{js,ts,jsx,tsx}`,
-    // include packages if not transpiling
-    "../../packages/ui/*.{js,ts,jsx,tsx}",
-  ],
-```
-
-If you choose this strategy, you can remove the `tailwindcss` and `autoprefixer` dependencies from the `ui` package.
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [Tailwind CSS](https://tailwindcss.com/) for styles
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
