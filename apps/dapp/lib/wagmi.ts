@@ -15,7 +15,7 @@ const connectors = connectorsForWallets(
     },
   ],
   {
-    appName: 'RainbowKit demo',
+    appName: 'Demo Dapp',
     projectId: 'YOUR_PROJECT_ID',
   }
 );
