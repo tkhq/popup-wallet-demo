@@ -34,3 +34,12 @@ yarn-error.log*
 
 # ui
 dist/
+
+# Ruby specific
+*.gem
+*.rbc
+/.config
+/coverage/
+/vendor/
+/tmp/
+.bundle/

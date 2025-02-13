@@ -1,0 +1,12 @@
+{
+  "name": "@repo/ruby-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bundle exec rackup -p 3002",
+    "build": "bundle install",
+    "start": "bundle exec rackup -p 3002 -E production",
+    "lint": "bundle exec rubocop",
+    "test": "bundle exec rspec"
+  }
+}

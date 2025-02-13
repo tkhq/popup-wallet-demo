@@ -22,13 +22,13 @@ const client = new TurnkeyServerClient({
 });
 
 export async function getWhoami(signedRequest: TSignedRequest) {
-  const { url, body, stamp } = signedRequest;
-
-  const resp = await fetch(url, {
+  // Send the signed request to our Ruby backend
+  const resp = await fetch('http://localhost:3002/authenticate', {
+    // or your production URL
     method: 'POST',
-    body,
+    body: JSON.stringify(signedRequest),
     headers: {
-      [stamp.stampHeaderName]: stamp.stampHeaderValue,
+      'Content-Type': 'application/json',
     },
   });
   const responseBody = await resp.json();
@@ -39,7 +39,7 @@ export async function getWhoami(signedRequest: TSignedRequest) {
       result: [],
     };
   }
-
+  console.log('responseBody', responseBody);
   // Extract organizationId from response
   const organizationId = responseBody.organizationId;
 
