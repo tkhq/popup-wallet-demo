@@ -1,5 +1,6 @@
 'use server';
 
+import { encrypt } from '@/lib/jwt';
 import {
   type TSignedRequest,
   ApiKeyStamper,
@@ -24,6 +25,7 @@ const client = new TurnkeyServerClient({
 export async function getWhoami(signedRequest: TSignedRequest) {
   const { url, body, stamp } = signedRequest;
 
+  // Forward request to Turnkey to authenticate
   const resp = await fetch(url, {
     method: 'POST',
     body,
@@ -31,6 +33,7 @@ export async function getWhoami(signedRequest: TSignedRequest) {
       [stamp.stampHeaderName]: stamp.stampHeaderValue,
     },
   });
+
   const responseBody = await resp.json();
 
   if (!resp.ok) {
@@ -39,9 +42,27 @@ export async function getWhoami(signedRequest: TSignedRequest) {
       result: [],
     };
   }
-
+  console.log('responseBody', responseBody);
   // Extract organizationId from response
-  const organizationId = responseBody.organizationId;
+  const { organizationId, userId } = responseBody;
+
+  // Generate a JWT with organizationId
+  const jwt = await encrypt({ organizationId, userId });
+
+  // Send the JWT to the Ruby backend for user details
+  const rubyResponse = await fetch('http://localhost:3002/authenticate', {
+    method: 'POST',
+    body: JSON.stringify({ jwt }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const rubyResponseBody = await rubyResponse.json();
+
+  console.log('rubyResponseBody', rubyResponseBody);
+
+  if (!rubyResponse.ok) {
+    return { error: 'Failed to fetch user details from Ruby backend' };
+  }
 
   // Get all wallets for the organization
   const { wallets } = await client.getWallets({
