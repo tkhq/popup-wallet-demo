@@ -6,7 +6,7 @@ gem 'rack'
 gem 'rackup'
 gem "httparty"
 gem "json"
-
+gem "jwt"
 group :development, :test do
   gem 'rspec'
   gem 'rubocop'
