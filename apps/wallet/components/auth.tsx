@@ -18,16 +18,23 @@ export function AuthButton() {
     setIsLoading(true);
     const passkeyClient = turnkey.passkeyClient();
     try {
-      const signedRequest = await passkeyClient.stampGetWhoami({
-        organizationId: parentOrgId,
-      });
+      let response;
 
-      if (!signedRequest) {
-        throw new Error('Failed to get signed request');
+      try {
+        const signedRequest = await passkeyClient.stampGetWhoami({
+          organizationId: parentOrgId,
+        });
+
+        if (!signedRequest) {
+          throw new Error('Failed to get signed request');
+        }
+
+        response = await getWhoami(signedRequest);
+      } catch (err) {
+        // ignore & fall back to creating passkey
       }
 
-      const response = await getWhoami(signedRequest);
-      if (response.error) {
+      if (!response || response.error || !response.result?.length) {
         const { encodedChallenge, attestation } =
           (await passkeyClient?.createUserPasskey({
             publicKey: {
@@ -45,8 +52,11 @@ export function AuthButton() {
               attestation,
             },
           });
+        } else {
+          throw new Error('Passkey creation failed');
         }
       } else {
+        // Passkey exists
         messenger.send('eth_requestAccounts', {
           result: [
             {
