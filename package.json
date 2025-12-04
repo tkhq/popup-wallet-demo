@@ -1,5 +1,5 @@
 {
-  "name": "with-tailwind",
+  "name": "popup-wallet-demo",
   "private": true,
   "scripts": {
     "build": "turbo build",
