@@ -88,7 +88,7 @@ export function SendTransaction() {
                 asChild
               >
                 <a
-                  href={`https://holesky.etherscan.io/tx/${transactionHash}`}
+                  href={`https://sepolia.etherscan.io/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

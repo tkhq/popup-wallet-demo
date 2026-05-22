@@ -1,5 +1,6 @@
 'use client';
 
+import { useTurnkey } from '@turnkey/react-wallet-kit';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,11 +8,11 @@ import {
   hexToBigInt,
   type Address,
   formatGwei,
+  ProviderRpcError,
   UserRejectedRequestError,
   serializeTransaction,
 } from 'viem';
 import { messenger } from '@/lib/window-messenger';
-import { getTurnkey } from '@/lib/turnkey';
 
 interface EthTransaction {
   from: Address;
@@ -20,7 +21,9 @@ interface EthTransaction {
   maxFeePerGas: Hex;
   maxPriorityFeePerGas: Hex;
   nonce: Hex;
-  value: Hex;
+  value?: Hex;
+  chainId?: Hex;
+  data?: Hex;
 }
 
 interface SignTransactionProps {
@@ -32,14 +35,11 @@ const truncateAddress = (address: Address) => {
   return `${address.slice(0, 6)}•••${address.slice(-4)}`;
 };
 
-export function SignTransaction({
-  transaction,
-  organizationId,
-}: SignTransactionProps) {
-  // Convert wei to ETH for display
-  const valueInEth = Number(BigInt(transaction.value)) / 1e18;
+export function SignTransaction({ transaction, organizationId }: SignTransactionProps) {
+  const { httpClient } = useTurnkey();
 
-  // Calculate max possible gas fee in ETH
+  const value = transaction.value ?? '0x0';
+  const valueInEth = Number(hexToBigInt(value)) / 1e18;
   const maxGasFee = Number(
     formatGwei(
       hexToBigInt(transaction.gas) * hexToBigInt(transaction.maxFeePerGas)
@@ -47,40 +47,50 @@ export function SignTransaction({
   );
 
   const handleConfirm = async () => {
-    // Serialize the transaction
-    const serializedTx = serializeTransaction({
-      ...transaction,
-      chainId: 17000, // Make sure to add chainId
-      // Convert hex values to bigint where needed
-      gas: hexToBigInt(transaction.gas),
-      maxFeePerGas: hexToBigInt(transaction.maxFeePerGas),
-      maxPriorityFeePerGas: hexToBigInt(transaction.maxPriorityFeePerGas),
-      nonce: Number(transaction.nonce), // Convert hex nonce to number
-      value: hexToBigInt(transaction.value),
-    });
+    if (!httpClient) {
+      messenger.send('eth_signTransaction', {
+        error: new ProviderRpcError(new Error('No active Turnkey session'), { code: -32603 }),
+      });
+      return;
+    }
 
-    // Remove '0x' prefix
-    const serializedTxWithoutPrefix = serializedTx.slice(2);
+    try {
+      const chainId = transaction.chainId ? Number(hexToBigInt(transaction.chainId)) : 11155111;
+      const serializedTx = serializeTransaction({
+        type: 'eip1559',
+        to: transaction.to,
+        from: transaction.from,
+        chainId,
+        gas: hexToBigInt(transaction.gas),
+        maxFeePerGas: hexToBigInt(transaction.maxFeePerGas),
+        maxPriorityFeePerGas: hexToBigInt(transaction.maxPriorityFeePerGas),
+        nonce: Number(hexToBigInt(transaction.nonce)),
+        value: hexToBigInt(value),
+        data: transaction.data,
+      });
 
-    const turnkey = getTurnkey();
-    const passkeyClient = turnkey.passkeyClient();
-    const { signedTransaction } = await passkeyClient.signTransaction({
-      signWith: transaction.from,
-      unsignedTransaction: serializedTxWithoutPrefix,
-      type: 'TRANSACTION_TYPE_ETHEREUM',
-      organizationId,
-    });
+      const { signedTransaction } = await httpClient.signTransaction({
+        signWith: transaction.from,
+        unsignedTransaction: serializedTx.slice(2),
+        type: 'TRANSACTION_TYPE_ETHEREUM',
+        organizationId,
+      });
 
-    messenger.send('eth_signTransaction', {
-      result: `0x${signedTransaction}`,
-    });
+      messenger.send('eth_signTransaction', { result: `0x${signedTransaction}` });
+    } catch (e) {
+      messenger.send('eth_signTransaction', {
+        error: new ProviderRpcError(
+          e instanceof Error ? e : new Error('Transaction signing failed'),
+          { code: -32603 }
+        ),
+      });
+    }
   };
 
   const handleDeny = () => {
-    const error = new UserRejectedRequestError(
-      new Error('User denied transaction')
-    );
-    messenger.send('eth_signTransaction', { error });
+    messenger.send('eth_signTransaction', {
+      error: new UserRejectedRequestError(new Error('User denied transaction')),
+    });
   };
 
   return (

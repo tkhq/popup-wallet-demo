@@ -1,73 +1,44 @@
 'use client';
 
+import { useTurnkey } from '@turnkey/react-wallet-kit';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { createUserSubOrg, getWhoami } from '@/app/actions';
 import { messenger } from '@/lib/window-messenger';
-import { getTurnkey } from '../lib/turnkey';
-import { Address } from 'viem';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
-
-const parentOrgId = process.env.NEXT_PUBLIC_ORGANIZATION_ID!;
+import { type Address, UserRejectedRequestError } from 'viem';
 
 export function AuthButton() {
-  const turnkey = getTurnkey();
+  const { handleLogin, session, wallets } = useTurnkey();
   const [isLoading, setIsLoading] = useState(false);
+  // Only send accounts when the user explicitly signed in during this popup
+  // instance. Without this guard, a persisted Turnkey session would fire the
+  // effect on mount and reconnect without any user interaction.
+  const loginInitiated = useRef(false);
+
+  useEffect(() => {
+    if (!loginInitiated.current || !session || wallets.length === 0) return;
+
+    const addresses = wallets
+      .flatMap((w) => w.accounts.map((a) => a.address))
+      .filter((addr): addr is Address => !!addr && addr.startsWith('0x'));
+
+    messenger.send('eth_requestAccounts', {
+      result: [{ accounts: addresses, organizationId: session.organizationId }],
+    });
+  }, [session, wallets]);
 
   const handleSignIn = async () => {
     setIsLoading(true);
-    const passkeyClient = turnkey.passkeyClient();
+    loginInitiated.current = true;
     try {
-      let response;
-
-      try {
-        const signedRequest = await passkeyClient.stampGetWhoami({
-          organizationId: parentOrgId,
-        });
-
-        if (!signedRequest) {
-          throw new Error('Failed to get signed request');
-        }
-
-        response = await getWhoami(signedRequest);
-      } catch (err) {
-        // ignore & fall back to creating passkey
-      }
-
-      if (!response || response.error || !response.result?.length) {
-        const { encodedChallenge, attestation } =
-          (await passkeyClient?.createUserPasskey({
-            publicKey: {
-              user: {
-                name: 'Popup Wallet Demo',
-                displayName: 'Popup Wallet Demo',
-              },
-            },
-          })) || {};
-        // Create a new sub organization for the user
-        if (encodedChallenge && attestation) {
-          const { subOrg, user } = await createUserSubOrg({
-            passkey: {
-              challenge: encodedChallenge,
-              attestation,
-            },
-          });
-        } else {
-          throw new Error('Passkey creation failed');
-        }
-      } else {
-        // Passkey exists
-        messenger.send('eth_requestAccounts', {
-          result: [
-            {
-              accounts: response.result as Address[],
-              organizationId: response.organizationId,
-            },
-          ],
-        });
-      }
+      await handleLogin();
     } catch (error) {
-      console.error('Failed to sign in:', error);
+      loginInitiated.current = false;
+      messenger.send('eth_requestAccounts', {
+        error: new UserRejectedRequestError(
+          error instanceof Error ? error : new Error('Login cancelled')
+        ),
+      });
     } finally {
       setIsLoading(false);
     }
