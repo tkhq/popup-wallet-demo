@@ -1,10 +1,10 @@
 'use client';
 
+import { useTurnkey } from '@turnkey/react-wallet-kit';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { type Hex, type Address, UserRejectedRequestError, pad } from 'viem';
 import { messenger } from '@/lib/window-messenger';
-import { getTurnkey } from '@/lib/turnkey';
 import { SupportedMethod } from '@/lib/types';
 
 interface SignMessageProps {
@@ -24,32 +24,28 @@ export function SignMessage({
   signWith,
   organizationId,
 }: SignMessageProps) {
-  // Convert hex message to readable string
+  const { httpClient } = useTurnkey();
+
   const readableMessage = new TextDecoder().decode(
     Buffer.from(message.slice(2), 'hex')
   );
 
   const handleConfirm = async () => {
-    const turnkey = getTurnkey();
-    const passkeyClient = turnkey.passkeyClient();
-    const { r, s, v } = await passkeyClient.signRawPayload({
+    const { r, s, v } = await httpClient!.signRawPayload({
       signWith,
-      payload: pad(message), // Remove '0x' prefix
+      payload: pad(message),
       organizationId,
       encoding: 'PAYLOAD_ENCODING_HEXADECIMAL',
       hashFunction: 'HASH_FUNCTION_NO_OP',
     });
 
-    messenger.send(method, {
-      result: `0x${r}${s}${v}`,
-    });
+    messenger.send(method, { result: `0x${r}${s}${v}` });
   };
 
   const handleDeny = () => {
-    const error = new UserRejectedRequestError(
-      new Error('User denied message signing')
-    );
-    messenger.send(method, { error });
+    messenger.send(method, {
+      error: new UserRejectedRequestError(new Error('User denied message signing')),
+    });
   };
 
   return (
@@ -69,9 +65,7 @@ export function SignMessage({
 
         <div className="space-y-2">
           <span className="text-muted-foreground">Message</span>
-          <div className="rounded-lg bg-muted p-4 break-words">
-            {readableMessage}
-          </div>
+          <div className="rounded-lg bg-muted p-4 break-words">{readableMessage}</div>
         </div>
 
         <div className="flex gap-2 pt-4">

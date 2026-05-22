@@ -1,30 +1,34 @@
 import { connectorsForWallets } from '@rainbow-me/rainbowkit';
-import {
-  injectedWallet,
-  walletConnectWallet,
-} from '@rainbow-me/rainbowkit/wallets';
-import { holesky } from 'wagmi/chains';
+import { injectedWallet } from '@rainbow-me/rainbowkit/wallets';
+import { sepolia } from 'wagmi/chains';
 import { createConfig, http } from 'wagmi';
-import { berakinWallet } from './connector';
+import { turnkeyWallet } from './connector';
 
 const connectors = connectorsForWallets(
   [
     {
       groupName: 'Recommended',
-      wallets: [berakinWallet, injectedWallet, walletConnectWallet],
+      wallets: [turnkeyWallet],
+    },
+    {
+      groupName: 'Other',
+      wallets: [injectedWallet],
     },
   ],
   {
     appName: 'Demo Dapp',
-    projectId: 'YOUR_PROJECT_ID',
+    projectId: '',
   }
 );
 
 export const config = createConfig({
   connectors,
-  chains: [holesky],
+  chains: [sepolia],
   ssr: true,
   transports: {
-    [holesky.id]: http(holesky.rpcUrls.default.http[0]),
+    [sepolia.id]: http(
+      process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ||
+        'https://ethereum-sepolia-rpc.publicnode.com'
+    ),
   },
 });

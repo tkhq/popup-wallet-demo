@@ -1,9 +1,8 @@
 import { AuthButton } from '@/components/auth';
-import { BerakinIcon } from '@/components/icons';
+import { TurnkeyIcon } from '@/components/icons';
 import { SignTransaction } from '@/components/sign-transaction';
 import { SignMessage } from '@/components/sign-message';
 import { type SupportedMethod } from '@/lib/types';
-import Image from 'next/image';
 
 /**
  * Wallet Page Component
@@ -30,9 +29,8 @@ import Image from 'next/image';
 export default async function Page({
   searchParams,
 }: {
-  searchParams: { request?: string; organizationId?: string };
+  searchParams: Promise<{ request?: string; organizationId?: string }>;
 }) {
-  // Parse the RPC request from the URL which is the encoded JSON RPC request
   const { request, organizationId } = await searchParams;
   const rpcRequest = request ? JSON.parse(decodeURIComponent(request)) : null;
 
@@ -77,27 +75,7 @@ export default async function Page({
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen gap-2">
-      <Image
-        src="/wallet-illustration.png"
-        alt="Wallet Illustration"
-        width={100}
-        height={100}
-        className="absolute top-0 left-0 w-full h-auto object-cover"
-      />
-      <BerakinIcon className="w-1/3 h-auto" />
-      {/* Show the RPC request details if present */}
-      {/* {rpcRequest && (
-        <div className="z-10 w-full max-w-5xl p-4 mb-8 border rounded-xl border-neutral-800 bg-zinc-800/30">
-          <h2 className="mb-2 text-lg font-bold">RPC Request:</h2>
-          <pre className="overflow-auto">
-            {JSON.stringify(rpcRequest, null, 2)}
-          </pre>
-        </div>
-      )} */}
-
-      {/* <BerakinIcon /> */}
-
-      {/* Render method-specific component */}
+      <TurnkeyIcon className="w-1/3 h-auto" />
       <div className="flex flex-row items-center justify-between w-full max-w-5xl p-2">
         {rpcRequest && renderMethodComponent(rpcRequest)}
       </div>

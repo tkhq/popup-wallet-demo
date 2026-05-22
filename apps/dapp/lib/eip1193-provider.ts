@@ -1,18 +1,25 @@
 import {
   EIP1193Provider,
-  EIP1193EventMap,
   EIP1193RequestFn,
   EIP1474Methods,
   WalletRpcSchema,
   RpcRequestError,
 } from 'viem';
-import { holesky } from 'viem/chains';
+
 import { getHttpRpcClient } from 'viem/utils';
 import EventEmitter from 'events';
 
 interface ProviderStore {
   accounts: string[];
   organizationId?: string;
+}
+
+export const STORAGE_KEY = 'TK:EIP1193Provider:store';
+
+export function clearProviderStore() {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 }
 
 export function createEIP1193Provider(): EIP1193Provider {
@@ -27,13 +34,9 @@ export function createEIP1193Provider(): EIP1193Provider {
    * @property {Function} reject - The reject function
    */
   const requestQueue: {
-    [method: string]: {
-      resolve: (value: any) => void;
-      reject: (reason?: any) => void;
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [method: string]: { resolve: (value: any) => void; reject: (reason?: unknown) => void };
   } = {};
-
-  const STORAGE_KEY = 'TK:EIP1193Provider:store';
 
   const getStore = (): ProviderStore => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -54,14 +57,6 @@ export function createEIP1193Provider(): EIP1193Provider {
     ) {
       eventEmitter.emit('accountsChanged', updates.accounts);
     }
-  };
-
-  const updateAccounts = (accounts: string[]) => {
-    updateStore({ accounts });
-  };
-
-  const updateOrganization = (organizationId: string) => {
-    updateStore({ organizationId });
   };
 
   const handleMessage = (event: MessageEvent) => {
@@ -145,11 +140,11 @@ export function createEIP1193Provider(): EIP1193Provider {
 
     // Handle eth_sendTransaction specially as it needs to be signed first
     if (method === 'eth_sendTransaction') {
-      const [transaction] = params as WalletRpcSchema[7]['Parameters'];
+      const [transaction] = params as WalletRpcSchema[5]['Parameters'];
       const signedTransaction = (await request({
         method: 'eth_signTransaction',
         params: [transaction],
-      })) as WalletRpcSchema[7]['ReturnType'];
+      })) as `0x${string}`;
 
       // Route the signed transaction through public RPC
       return request({
@@ -160,18 +155,12 @@ export function createEIP1193Provider(): EIP1193Provider {
 
     // Handle eth_accounts
     if (method === 'eth_accounts') {
-      const store = getStore();
-      if (store.accounts.length > 0) {
-        return store.accounts;
-      }
-      // If no stored accounts, request them
-      return request({ method: 'eth_requestAccounts' });
+      return getStore().accounts;
     }
 
     // Route public RPC methods through RPC endpoint
     if (PUBLIC_RPC_METHODS.has(method)) {
-      // Hardcoded for now, this should be configurable
-      const rpcUrl = holesky.rpcUrls.default.http[0];
+      const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
 
       if (!rpcUrl) {
         throw new Error('No RPC URL available for current chain');
@@ -204,10 +193,11 @@ export function createEIP1193Provider(): EIP1193Provider {
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
       const organizationId = getStore().organizationId;
+      const orgParam = organizationId ? `&organizationId=${organizationId}` : '';
 
       popup = window.open(
-        `http://localhost:3001?request=${encodeURIComponent(JSON.stringify({ method, params }))}&organizationId=${organizationId}`,
-        'Berakin Wallet',
+        `http://localhost:3001?request=${encodeURIComponent(JSON.stringify({ method, params }))}${orgParam}`,
+        'Turnkey Wallet',
         `width=${width},height=${height},left=${left},top=${top}`
       );
     }
