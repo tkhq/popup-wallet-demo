@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { messenger } from '@/lib/window-messenger';
 import { Loader2 } from 'lucide-react';
-import type { Address } from 'viem';
+import { type Address, UserRejectedRequestError } from 'viem';
 
 export function AuthButton() {
   const { handleLogin, session, wallets } = useTurnkey();
@@ -34,7 +34,11 @@ export function AuthButton() {
       await handleLogin();
     } catch (error) {
       loginInitiated.current = false;
-      console.error('[wallet] handleLogin threw:', error);
+      messenger.send('eth_requestAccounts', {
+        error: new UserRejectedRequestError(
+          error instanceof Error ? error : new Error('Login cancelled')
+        ),
+      });
     } finally {
       setIsLoading(false);
     }

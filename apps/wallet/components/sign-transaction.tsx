@@ -23,6 +23,7 @@ interface EthTransaction {
   nonce: Hex;
   value?: Hex;
   chainId?: Hex;
+  data?: Hex;
 }
 
 interface SignTransactionProps {
@@ -65,6 +66,7 @@ export function SignTransaction({ transaction, organizationId }: SignTransaction
         maxPriorityFeePerGas: hexToBigInt(transaction.maxPriorityFeePerGas),
         nonce: Number(hexToBigInt(transaction.nonce)),
         value: hexToBigInt(value),
+        data: transaction.data,
       });
 
       const { signedTransaction } = await httpClient.signTransaction({

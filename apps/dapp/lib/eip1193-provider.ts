@@ -22,6 +22,8 @@ export function clearProviderStore() {
   }
 }
 
+const WALLET_ORIGIN = 'http://localhost:3001';
+
 export function createEIP1193Provider(): EIP1193Provider {
   let popup: Window | null = null;
   const eventEmitter = new EventEmitter();
@@ -60,6 +62,7 @@ export function createEIP1193Provider(): EIP1193Provider {
   };
 
   const handleMessage = (event: MessageEvent) => {
+    if (event.origin !== WALLET_ORIGIN || event.source !== popup) return;
     const { method, result, error } = event.data;
 
     // Handle RPC responses using method name
