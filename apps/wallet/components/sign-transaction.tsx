@@ -8,6 +8,7 @@ import {
   hexToBigInt,
   type Address,
   formatGwei,
+  ProviderRpcError,
   UserRejectedRequestError,
   serializeTransaction,
 } from 'viem';
@@ -45,27 +46,43 @@ export function SignTransaction({ transaction, organizationId }: SignTransaction
   );
 
   const handleConfirm = async () => {
-    const chainId = transaction.chainId ? Number(hexToBigInt(transaction.chainId)) : 11155111;
-    const serializedTx = serializeTransaction({
-      type: 'eip1559',
-      to: transaction.to,
-      from: transaction.from,
-      chainId,
-      gas: hexToBigInt(transaction.gas),
-      maxFeePerGas: hexToBigInt(transaction.maxFeePerGas),
-      maxPriorityFeePerGas: hexToBigInt(transaction.maxPriorityFeePerGas),
-      nonce: Number(hexToBigInt(transaction.nonce)),
-      value: hexToBigInt(value),
-    });
+    if (!httpClient) {
+      messenger.send('eth_signTransaction', {
+        error: new ProviderRpcError(new Error('No active Turnkey session'), { code: -32603 }),
+      });
+      return;
+    }
 
-    const { signedTransaction } = await httpClient!.signTransaction({
-      signWith: transaction.from,
-      unsignedTransaction: serializedTx.slice(2),
-      type: 'TRANSACTION_TYPE_ETHEREUM',
-      organizationId,
-    });
+    try {
+      const chainId = transaction.chainId ? Number(hexToBigInt(transaction.chainId)) : 11155111;
+      const serializedTx = serializeTransaction({
+        type: 'eip1559',
+        to: transaction.to,
+        from: transaction.from,
+        chainId,
+        gas: hexToBigInt(transaction.gas),
+        maxFeePerGas: hexToBigInt(transaction.maxFeePerGas),
+        maxPriorityFeePerGas: hexToBigInt(transaction.maxPriorityFeePerGas),
+        nonce: Number(hexToBigInt(transaction.nonce)),
+        value: hexToBigInt(value),
+      });
 
-    messenger.send('eth_signTransaction', { result: `0x${signedTransaction}` });
+      const { signedTransaction } = await httpClient.signTransaction({
+        signWith: transaction.from,
+        unsignedTransaction: serializedTx.slice(2),
+        type: 'TRANSACTION_TYPE_ETHEREUM',
+        organizationId,
+      });
+
+      messenger.send('eth_signTransaction', { result: `0x${signedTransaction}` });
+    } catch (e) {
+      messenger.send('eth_signTransaction', {
+        error: new ProviderRpcError(
+          e instanceof Error ? e : new Error('Transaction signing failed'),
+          { code: -32603 }
+        ),
+      });
+    }
   };
 
   const handleDeny = () => {

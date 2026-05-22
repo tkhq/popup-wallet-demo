@@ -3,7 +3,7 @@
 import { useTurnkey } from '@turnkey/react-wallet-kit';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { type Hex, type Address, UserRejectedRequestError, pad } from 'viem';
+import { type Hex, type Address, ProviderRpcError, UserRejectedRequestError, pad } from 'viem';
 import { messenger } from '@/lib/window-messenger';
 import { SupportedMethod } from '@/lib/types';
 
@@ -31,15 +31,31 @@ export function SignMessage({
   );
 
   const handleConfirm = async () => {
-    const { r, s, v } = await httpClient!.signRawPayload({
-      signWith,
-      payload: pad(message),
-      organizationId,
-      encoding: 'PAYLOAD_ENCODING_HEXADECIMAL',
-      hashFunction: 'HASH_FUNCTION_NO_OP',
-    });
+    if (!httpClient) {
+      messenger.send(method, {
+        error: new ProviderRpcError(new Error('No active Turnkey session'), { code: -32603 }),
+      });
+      return;
+    }
 
-    messenger.send(method, { result: `0x${r}${s}${v}` });
+    try {
+      const { r, s, v } = await httpClient.signRawPayload({
+        signWith,
+        payload: pad(message),
+        organizationId,
+        encoding: 'PAYLOAD_ENCODING_HEXADECIMAL',
+        hashFunction: 'HASH_FUNCTION_NO_OP',
+      });
+
+      messenger.send(method, { result: `0x${r}${s}${v}` });
+    } catch (e) {
+      messenger.send(method, {
+        error: new ProviderRpcError(
+          e instanceof Error ? e : new Error('Message signing failed'),
+          { code: -32603 }
+        ),
+      });
+    }
   };
 
   const handleDeny = () => {

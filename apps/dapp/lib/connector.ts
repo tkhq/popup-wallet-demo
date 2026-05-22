@@ -17,7 +17,12 @@ export function turnkeyWalletConnector() {
 
     async connect(_params?: { chainId?: number; isReconnecting?: boolean }) {
       const p = (await this.getProvider()) as EIP1193Provider;
-      const accounts = (await p.request({ method: 'eth_requestAccounts' })) as Address[];
+      let accounts = _params?.isReconnecting
+        ? ((await p.request({ method: 'eth_accounts' })) as Address[])
+        : [];
+      if (!accounts.length) {
+        accounts = (await p.request({ method: 'eth_requestAccounts' })) as Address[];
+      }
 
       if (!accountsChanged) {
         accountsChanged = this.onAccountsChanged.bind(this);
@@ -78,6 +83,7 @@ export function turnkeyWalletConnector() {
 
     async onDisconnect() {
       config.emitter.emit('disconnect');
+      clearProviderStore();
       const p = (await this.getProvider()) as EIP1193Provider;
       if (accountsChanged) { p.removeListener('accountsChanged', accountsChanged); accountsChanged = undefined; }
       if (chainChanged) { p.removeListener('chainChanged', chainChanged); chainChanged = undefined; }
